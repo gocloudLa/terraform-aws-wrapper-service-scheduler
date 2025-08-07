@@ -1,0 +1,23 @@
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  - package-ecosystem: "terraform" # See documentation for possible values
+    directories: 
+      - "/"
+      - "/example/*/"
+      - "/modules/*/*/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 20
+    # Add assignees
+    assignees:
+      - "fmidaglia-gocloud"
+    # Add reviewer
+    reviewers:
+      - "fferron-gocloud"
+    groups:
+      all-terraform-dependencies:
+        patterns:
+          - "*"
