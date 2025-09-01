@@ -1,0 +1,76 @@
+module_name: Terraform ECS Scheduler Module
+module_description: The Terraform Wrapper for Service Scheduler provides the implementation of a lambda function and two event bridge events to handle the scheduled shutdown and startup of various services, an idea for shutting down environments during non-productive hours.
+module_badges:
+  - url: "https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/releases/latest"
+    image: "https://img.shields.io/github/v/release/gocloudLa/terraform-aws-wrapper-service-scheduler.svg?style=for-the-badge"
+    alt: "Latest Release"
+  - url: ""
+    image: "https://img.shields.io/github/last-commit/gocloudLa/terraform-aws-wrapper-service-scheduler.svg?style=for-the-badge"
+    alt: "Last Commit"
+  - url: "https://registry.terraform.io/modules/gocloudLa/wrapper-service-scheduler/aws"
+    image: "https://img.shields.io/badge/Terraform-Registry-7B42BC?style=for-the-badge&logo=terraform&logoColor=white"
+    alt: "Terraform Registry"
+quick_start: |
+  ```hcl
+  service_scheduler_parameters = {
+      enable = true # Default: false
+  
+      power_on_schedule  = "cron(0 11 * * ? *)" # 8AM UTC-3 / null or commented to disable
+      power_off_schedule = "cron(0 23 * * ? *)" # 8PM UTC-3 / null or commented to disable
+  
+      # default_selection_mode = "include"
+      # enable_scheduler_ecs   = true   # Default: true
+      # enable_scheduler_rds   = true   # Default: true
+      # enable_scheduler_ec2   = true   # Default: true
+      # cloudwatch_logs_retention_in_days = 14
+      # log_level = "INFO"
+    }
+  ```
+features:
+  - icon: 🔍
+    title: Operational details
+    short_description: #
+    long_description: |
+      #
+    examples:
+  - icon: 🗂️
+    title: Recursos
+    short_description: Main Lambda function, DynamoDB table, and optional Event Bridge Rule
+    long_description: |
+      The infrastructure includes the following resources
+      * Main lambda function
+      * DynamoDB table
+      * Event Bridge Rule (power-off) (optional)
+    examples:
+  - icon: 🔄
+    title: WorkFlow
+    short_description: Executes lambda functions with parameters and prevents duplicate runs
+    long_description: |
+      Operational Workflow
+      * **START**<br/>
+      Start the lambda with the parameters and verify if it can execute.<br/>
+      (the same action cannot be executed twice in a row)
+    examples:
+  - icon: 🔧
+    title: Configuration Modes (include / exclude)
+    short_description: Includes all services by default, except those tagged to exclude
+    long_description: |
+      **Include Mode** (Default)<br/>
+      Variable: `default_selection_mode = "include"`<br/>
+      Causes **ALL** services to be included within the application logic for automatic shutdown and startup scheduling except for services that have the tag `AutomaticScheduler: false`<br/>
+      **Exclude Mode**<br/>
+    examples:
+important_notes: ""
+input_table: |
+  | enable | Controls creation of services | `bool` | `"true"` | no |
+  | power_on_schedule | Controls CRON expression for startup | `string` | `null` | no |
+  | power_off_schedule | Controls CRON expression for shutdown | `string` | `null` | no |
+  | default_selection_mode | Controls service selection mode | `string` | `"include"` | no |
+  | enable_scheduler_ecs | Controls inclusion of ECS service in automation | `bool` | `true` | no |
+  | enable_scheduler_rds | Controls inclusion of RDS service in automation | `bool` | `true` | no |
+  | enable_scheduler_ec2 | Controls inclusion of EC2 service in automation | `bool` | `true` | no |
+  | cloudwatch_logs_retention_in_days | CloudWatch log retention in days | `number` | `14` | no |
+  | log_level | Logging level configuration | `string` | `"INFO"` | no |
+  | ipv6_allowed_for_dual_stack | Allows outbound IPv6 traffic on VPC functions that are connected to dual-stack subnets | `bool` | `null` | no |
+  | recursive_loop | Lambda function recursion configuration. Valid values are Allow or Terminate. | `string` | `null` | no |
+  | include_default_tag | include_default_tag | `bool` | `true` | no |
