@@ -27,42 +27,42 @@ quick_start: |
     }
   ```
 important_notes: |
-  ### Detalles de funcionamiento
-  #### Recursos
-  La infraestructura cuenta con los siguientes recursos
-  * Funcion lambda principal
-  * Tabla de DynamoDB
-  * Event Bridge Rule (power-off) (opcional)
-  * Event Bridge Rule (power-on) (opcional)
+  ### Operation Details
+  #### Resources
+  The infrastructure includes the following resources:
+  * Main lambda function
+  * DynamoDB table
+  * Event Bridge Rule (power-off) (optional)
+  * Event Bridge Rule (power-on) (optional)
 
-  #### WorkFlow
-  Workflow de Funcionamiento
-  * **INICIO**<br/>
-  Inicia la lambda con los parametros y verifica si puede ejecutar.<br/>
-  (no se puede ejecutar dos veces seguidas la misma accion)
-    * Se persiste en DynamoDB la accion solicitada con status (begin).
-  * **PROCESO**
-    * Si se ejecuta accion **power-off**
-      * La funcion lambda hace un discovery de los servicios a manejar.
-      * Persiste el estado actual (previo al power-off) en DynamoDB.
-      * Actualiza la configuracion para que se apaguen los servicios.
-    * Si se ejecuta accion **power-on**
-      * La funcion lambda hace un discovery del ultimo estado de los servicios guardados en DynamoDB.
-      * Actualiza la configuracion de los servicios para hacer match con el estado guardado.
-  * **FIN**<br/>
-  Finaliza la fucion en forma exitosa
-    * Se persiste en DynamoDB la accion solicitada con status (end).
+  #### Workflow
+  Operation Workflow:
+  * **START**<br/>
+  The lambda starts with the parameters and verifies if it can execute.<br/>
+  (the same action cannot be executed twice in a row)
+    * The requested action is persisted in DynamoDB with status (begin).
+  * **PROCESS**
+    * If **power-off** action is executed:
+      * The lambda function performs discovery of services to manage.
+      * Persists the current state (prior to power-off) in DynamoDB.
+      * Updates the configuration to turn off the services.
+    * If **power-on** action is executed:
+      * The lambda function discovers the last state of services saved in DynamoDB.
+      * Updates the service configuration to match the saved state.
+  * **END**<br/>
+  The function completes successfully:
+    * The requested action is persisted in DynamoDB with status (end).
   
   ---
 
-  ### Modos de Configuracion (include / exclude)
-  **Modo Include** (Default)<br/>
+  ### Configuration Modes (include / exclude)
+  **Include Mode** (Default)<br/>
   Variable: `default_selection_mode = "include"`<br/>
-  Provoca que se incluyan **TODOS** los servicios dentro de la logica del aplicativo para su programacion de apagado y encendido automatico a exepcion de los servicios que cuenten con el tag `AutomaticScheduler: false`<br/>
+  Causes **ALL** services to be included within the application logic for automatic shutdown and startup scheduling, except for services that have the tag `AutomaticScheduler: false`<br/>
 
-  **Modo Exclude**<br/>
+  **Exclude Mode**<br/>
   Variable: `default_selection_mode = "exclude"`<br/>
-  Provoca que se excluyan **TODOS** los servicios dentro de la logica del aplicativo para su programacion de apagado y encendido automatico a exepcion de los servicios que cuenten con el tag `AutomaticScheduler: true`<br/>
+  Causes **ALL** services to be excluded from the application logic for automatic shutdown and startup scheduling, except for services that have the tag `AutomaticScheduler: true`<br/>
 
 input_table: |
   | enable | Controls creation of services | `bool` | `"true"` | no |
