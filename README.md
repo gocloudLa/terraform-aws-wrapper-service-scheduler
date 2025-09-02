@@ -49,15 +49,15 @@ service_scheduler_parameters = {
 
 
 ## ⚠️ Important Notes
-#### Detalles de funcionamiento
-##### Recursos
+### Detalles de funcionamiento
+#### Recursos
 La infraestructura cuenta con los siguientes recursos
 * Funcion lambda principal
 * Tabla de DynamoDB
 * Event Bridge Rule (power-off) (opcional)
 * Event Bridge Rule (power-on) (opcional)
 
-##### WorkFlow
+#### WorkFlow
 Workflow de Funcionamiento
 * **INICIO**<br/>
 Inicia la lambda con los parametros y verifica si puede ejecutar.<br/>
@@ -75,7 +75,9 @@ Inicia la lambda con los parametros y verifica si puede ejecutar.<br/>
 Finaliza la fucion en forma exitosa
   * Se persiste en DynamoDB la accion solicitada con status (end).
 
-#### Modos de Configuracion (include / exclude)
+---
+
+### Modos de Configuracion (include / exclude)
 **Modo Include** (Default)<br/>
 Variable: `default_selection_mode = "include"`<br/>
 Provoca que se incluyan **TODOS** los servicios dentro de la logica del aplicativo para su programacion de apagado y encendido automatico a exepcion de los servicios que cuenten con el tag `AutomaticScheduler: false`<br/>
