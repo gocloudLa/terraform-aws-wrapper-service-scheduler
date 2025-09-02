@@ -42,6 +42,22 @@ service_scheduler_parameters = {
 
 
 
+## 📑 Inputs
+| Name                              | Description                                                                            | Type     | Default     | Required |
+| --------------------------------- | -------------------------------------------------------------------------------------- | -------- | ----------- | -------- |
+| enable                            | Controls creation of services                                                          | `bool`   | `"true"`    | no       |
+| power_on_schedule                 | Controls CRON expression for startup                                                   | `string` | `null`      | no       |
+| power_off_schedule                | Controls CRON expression for shutdown                                                  | `string` | `null`      | no       |
+| default_selection_mode            | Controls service selection mode                                                        | `string` | `"include"` | no       |
+| enable_scheduler_ecs              | Controls inclusion of ECS service in automation                                        | `bool`   | `true`      | no       |
+| enable_scheduler_rds              | Controls inclusion of RDS service in automation                                        | `bool`   | `true`      | no       |
+| enable_scheduler_ec2              | Controls inclusion of EC2 service in automation                                        | `bool`   | `true`      | no       |
+| cloudwatch_logs_retention_in_days | CloudWatch log retention in days                                                       | `number` | `14`        | no       |
+| log_level                         | Logging level configuration                                                            | `string` | `"INFO"`    | no       |
+| ipv6_allowed_for_dual_stack       | Allows outbound IPv6 traffic on VPC functions that are connected to dual-stack subnets | `bool`   | `null`      | no       |
+| recursive_loop                    | Lambda function recursion configuration. Valid values are Allow or Terminate.          | `string` | `null`      | no       |
+| include_default_tag               | include_default_tag                                                                    | `bool`   | `true`      | no       |
+
 
 
 
