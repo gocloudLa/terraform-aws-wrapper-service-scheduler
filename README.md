@@ -15,8 +15,8 @@ The Terraform Wrapper for Service Scheduler provides the implementation of a lam
 ### 🔗 External Modules
 | Name | Version |
 |------|------:|
-| [terraform-aws-modules/eventbridge/aws](https://github.com/terraform-aws-modules/eventbridge-aws) | 4.1.0 |
-| [terraform-aws-modules/lambda/aws](https://github.com/terraform-aws-modules/lambda-aws) | 8.0.1 |
+| <a href="https://github.com/terraform-aws-modules/terraform-aws-eventbridge" target="_blank">terraform-aws-modules/eventbridge/aws</a> | 4.1.0 |
+| <a href="https://github.com/terraform-aws-modules/terraform-aws-lambda" target="_blank">terraform-aws-modules/lambda/aws</a> | 8.0.1 |
 
 
 
