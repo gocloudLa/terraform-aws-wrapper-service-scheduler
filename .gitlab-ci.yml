@@ -1,5 +1,0 @@
-include:
-  - project: "espinlabs/gocloud/infrastructure-engine/tools/gitlab-ci"
-    ref: main
-    file:
-      - 'terraform/gitlab-ci.yml'
