@@ -6,7 +6,7 @@ updates:
   - package-ecosystem: "terraform" # See documentation for possible values
     directories: 
       - "/"
-      - "/example/*/"
+      - "/examples/*/"
       - "/modules/*/*/"
     schedule:
       interval: "weekly"
