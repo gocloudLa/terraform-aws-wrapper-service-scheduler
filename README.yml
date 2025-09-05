@@ -18,12 +18,6 @@ quick_start: |
       power_on_schedule  = "cron(0 11 * * ? *)" # 8AM UTC-3 / null or commented to disable
       power_off_schedule = "cron(0 23 * * ? *)" # 8PM UTC-3 / null or commented to disable
   
-      # default_selection_mode = "include"
-      # enable_scheduler_ecs   = true   # Default: true
-      # enable_scheduler_rds   = true   # Default: true
-      # enable_scheduler_ec2   = true   # Default: true
-      # cloudwatch_logs_retention_in_days = 14
-      # log_level = "INFO"
     }
   ```
 important_notes: |
