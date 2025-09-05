@@ -111,7 +111,6 @@ We welcome contributions! Please see our contributing guidelines for more detail
 
 ## 🆘 Support
 - 📧 **Email**: info@gocloud.la
-- 🐛 **Issues**: [GitHub Issues](https://github.com/gocloudLa/issues)
 
 ## 🧑‍💻 About
 We are focused on Cloud Engineering, DevOps, and Infrastructure as Code.
