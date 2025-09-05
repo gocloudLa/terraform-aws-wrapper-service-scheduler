@@ -51,6 +51,7 @@ service_scheduler_parameters = {
 | ipv6_allowed_for_dual_stack       | Allows outbound IPv6 traffic on VPC functions that are connected to dual-stack subnets | `bool`   | `null`      | no       |
 | recursive_loop                    | Lambda function recursion configuration. Valid values are Allow or Terminate.          | `string` | `null`      | no       |
 | include_default_tag               | include_default_tag                                                                    | `bool`   | `true`      | no       |
+| tags                              | A map of tags to assign to resources.                                                  | `map`    | `{}`        | no       |
 
 
 
