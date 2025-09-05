@@ -82,7 +82,7 @@ module "lambda_service_scheduler" {
   recursive_loop              = try(var.service_scheduler_parameters.recursive_loop, null)
   include_default_tag         = try(var.service_scheduler_parameters.include_default_tag, true)
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, try(var.service_scheduler_parameters.tags, var.service_scheduler_defaults.tags, null))
 }
 
 
@@ -108,7 +108,7 @@ resource "aws_dynamodb_table" "this" {
     type = "S" # Tipo String para almacenar la fecha y hora
   }
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, try(var.service_scheduler_parameters.tags, var.service_scheduler_defaults.tags, null))
 }
 
 
@@ -123,5 +123,5 @@ module "event_bridge_service_scheduler" {
   rules   = local.event_bridge_service_scheduler_rules
   targets = local.event_bridge_service_scheduler_targets
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, try(var.service_scheduler_parameters.tags, var.service_scheduler_defaults.tags, null))
 }
