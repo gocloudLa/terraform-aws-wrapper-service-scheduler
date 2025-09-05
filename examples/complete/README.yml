@@ -1,0 +1,7 @@
+title: "Complete Example"
+description: "This example demonstrates a fully configured Terraform module for a service scheduler, enabling specific scheduling times and utilizing default parameters."
+main_purpose: "The main purpose is to configure a service scheduler with specific power-on and power-off schedules."
+key_features:
+  - "**Enable Scheduler**: The scheduler is enabled by default."
+  - "**Power On Schedule**: The service powers on at 8AM UTC-3."
+  - "**Power Off Schedule**: The service powers off at 8PM UTC-3."

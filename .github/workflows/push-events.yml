@@ -1,0 +1,15 @@
+---
+name: "Push Events Workflow"
+on:
+  push:
+    branches: [main]
+
+permissions:
+  pull-requests: write
+  id-token: write
+  contents: write
+
+jobs:
+  push-events:
+    uses: gocloudLa/.github/.github/workflows/shared-terraform-push-events.yml@main
+    secrets: inherit
