@@ -13,10 +13,13 @@ default_selection_mode = os.getenv('DEFAULT_SELECTION_MODE', 'include').lower()
 enable_scheduler_ecs = os.getenv('ENABLE_SCHEDULER_ECS', 'true').lower() == 'true'
 enable_scheduler_rds = os.getenv('ENABLE_SCHEDULER_RDS', 'true').lower() == 'true'
 enable_scheduler_ec2 = os.getenv('ENABLE_SCHEDULER_EC2', 'true').lower() == 'true'
+enable_scheduler_asg = os.getenv('ENABLE_SCHEDULER_ASG', 'true').lower() == 'true'
 
 ecs_client = boto3.client('ecs')
 application_autoscaling_client = boto3.client('application-autoscaling')
 dynamodb_client = boto3.resource('dynamodb')
+autoscaling_client = boto3.client("autoscaling")
+ec2_client = boto3.client("ec2")
 
 DYNAMO_TABLE_NAME = os.getenv('DYNAMO_TABLE_NAME', '')
 dynamo_table = dynamodb_client.Table(DYNAMO_TABLE_NAME)
@@ -112,6 +115,7 @@ def general_power_off(dry_run):
     ecs_power_off(dry_run)
     rds_power_off(dry_run)
     ec2_power_off(dry_run)
+    asg_power_off(dry_run)
     
     logger.info("General power-off process completed.")
 
@@ -122,6 +126,7 @@ def general_power_on(dry_run):
     ecs_power_on(dry_run)
     rds_power_on(dry_run)
     ec2_power_on(dry_run)
+    asg_power_on(dry_run)
     
     logger.info("General power-on process completed.")
 
@@ -338,7 +343,47 @@ def ec2_power_off(dry_run):
         return None
     logger.info("Starting EC2 Instances power-off.")
 
-    logger.info("Completed EC2 Instances power-off.")
+    timestamp = datetime.utcnow().isoformat()
+
+    try:
+        paginator = ec2_client.get_paginator("describe_instances")
+        for page in paginator.paginate(Filters=[{"Name": "instance-state-name", "Values": ["running"]}]):
+            for reservation in page.get("Reservations", []):
+                for instance in reservation.get("Instances", []):
+                    instance_id = instance["InstanceId"]
+                    tags = {tag["Key"]: tag["Value"].lower() for tag in instance.get("Tags", [])}
+                    auto_scheduler_tag = tags.get("AutomaticScheduler")
+                    asg_tag = tags.get("aws:autoscaling:groupName")
+
+                    if asg_tag:
+                        logger.info(f"Skipping EC2 {instance_id} because it belongs to ASG {asg_tag}.")
+                        continue
+
+                    should_power_off = (
+                        (default_selection_mode == "include" and auto_scheduler_tag != "false") or
+                        (default_selection_mode == "exclude" and auto_scheduler_tag == "true")
+                    )
+                    if not should_power_off:
+                        logger.info(f"Skipping EC2 {instance_id} due to 'AutomaticScheduler' tag and selection mode.")
+                        continue
+
+                    if dry_run:
+                        logger.info(f"[dry-run] Simulating EC2 {instance_id} powered off.")
+                    else:
+                        dynamo_table.put_item(Item={
+                            "resource_id": instance_id,
+                            "resource_type": "EC2",
+                            "timestamp": timestamp
+                        })
+                        logger.debug(f"Saved state for EC2 {instance_id} in DynamoDB.")
+
+                        ec2_client.stop_instances(InstanceIds=[instance_id])
+                        logger.info(f"EC2 {instance_id} powered off.")
+
+    except Exception as e:
+        logger.error(f"Error processing EC2 instances: {e}")
+
+    logger.info("Completed EC2 instances power-off.")
 
 def ec2_power_on(dry_run):
     """Powers on EC2 Instances."""
@@ -347,4 +392,190 @@ def ec2_power_on(dry_run):
         return None
     logger.info("Starting EC2 Instances power-on.")
 
+    response = dynamo_table.scan(
+        FilterExpression=boto3.dynamodb.conditions.Attr('resource_id').ne('scheduler')
+    )
+
+    latest_timestamp = max((item['timestamp'] for item in response['Items']), default=None)
+    if not latest_timestamp:
+        logger.error("Error. No recent timestamp found.")
+        return False
+
+    instances_with_latest_timestamp = dynamo_table.scan(
+        FilterExpression=(
+            boto3.dynamodb.conditions.Attr('timestamp').eq(latest_timestamp) &
+            boto3.dynamodb.conditions.Attr('resource_id').ne('scheduler')
+        )
+    ).get('Items', [])
+
+    if not instances_with_latest_timestamp:
+        logger.error("No EC2 records found with the latest timestamp.")
+        return False
+
+    logger.info(f"Total EC2 instances with the latest timestamp: {len(instances_with_latest_timestamp)}")
+
+    paginator = ec2_client.get_paginator("describe_instances")
+    for page in paginator.paginate(Filters=[{"Name": "instance-state-name", "Values": ["stopped"]}]):
+        for reservation in page.get("Reservations", []):
+            for instance in reservation.get("Instances", []):
+                instance_id = instance["InstanceId"]
+                tags = {tag["Key"]: tag["Value"].lower() for tag in instance.get("Tags", [])}
+                asg_tag = tags.get("aws:autoscaling:groupName")
+
+                if asg_tag:
+                    logger.info(f"Skipping EC2 {instance_id} because it belongs to ASG {asg_tag}.")
+                    continue
+
+                record = next((item for item in instances_with_latest_timestamp if item["resource_id"] == instance_id), None)
+                if not record:
+                    logger.warning(f"No previous state found in DynamoDB for EC2 {instance_id}. Skipping.")
+                    continue
+
+                if dry_run:
+                    logger.info(f"[dry-run] Simulating EC2 {instance_id} start.")
+                else:
+                    try:
+                        ec2_client.start_instances(InstanceIds=[instance_id])
+                        logger.info(f"EC2 {instance_id} powered on.")
+                    except Exception as e:
+                        logger.error(f"Error starting EC2 {instance_id}: {e}")
+
     logger.info("Completed EC2 Instances power-on.")
+
+def asg_power_off(dry_run):
+    """Powers off Auto Scaling Group instances."""
+    if not enable_scheduler_asg:
+        logger.info("ASG scheduler is disabled. Skipping...")
+        return None
+    logger.info("Starting ASG instances power-off.")
+
+    timestamp = datetime.utcnow().isoformat()
+
+    asg_names = []
+    asgs_info = {}
+    paginator = autoscaling_client.get_paginator("describe_auto_scaling_groups")
+    for page in paginator.paginate():
+        for asg in page.get("AutoScalingGroups", []):
+            asg_name = asg["AutoScalingGroupName"]
+            asg_names.append(asg_name)
+            asgs_info[asg_name] = asg
+    logger.debug(f"Found ASGs: {asg_names}")
+
+    for asg_name in asg_names:
+        asg = asgs_info[asg_name]
+        tags = {tag["Key"]: tag["Value"].lower() for tag in asg.get("Tags", [])}
+        auto_scheduler_tag = tags.get("AutomaticScheduler")
+
+        should_power_off = (
+            (default_selection_mode == "include" and auto_scheduler_tag != "false") or
+            (default_selection_mode == "exclude" and auto_scheduler_tag == "true")
+        )
+        if not should_power_off:
+            logger.info(f"Skipping ASG {asg_name} due to 'AutomaticScheduler' tag and selection mode.")
+            continue
+
+        prev_state = {
+            "MinSize": asg["MinSize"],
+            "MaxSize": asg["MaxSize"],
+            "DesiredCapacity": asg["DesiredCapacity"]
+        }
+        logger.info(f"ASG {asg_name} previous state: {prev_state}")
+
+        if dry_run:
+            logger.info(f"[dry-run] Simulating ASG {asg_name} powered off (Min/Max/Desired=0).")
+        else:
+            try:
+                dynamo_table.put_item(Item={
+                    "resource_id": asg_name,
+                    "resource_type": "ASG",
+                    "previous_state": prev_state,
+                    "timestamp": timestamp
+                })
+                logger.debug(f"Saved state for ASG {asg_name} in DynamoDB.")
+            except Exception as e:
+                logger.error(f"Error saving state for ASG {asg_name} in DynamoDB: {e}")
+                continue
+
+        try:
+            autoscaling_client.update_auto_scaling_group(
+                AutoScalingGroupName=asg_name,
+                MinSize=0,
+                MaxSize=0,
+                DesiredCapacity=0
+            )
+            logger.info(f"ASG {asg_name} powered off (Min/Max/Desired=0).")
+        except Exception as e:
+            logger.error(f"Error updating ASG {asg_name}: {e}")
+
+    logger.info("Completed ASG instances power-off.")
+
+def asg_power_on(dry_run):
+    """Powers on Auto Scaling Groups instances."""
+    if not enable_scheduler_asg:
+        logger.info("ASG scheduler is disabled. Skipping...")
+        return None
+    logger.info("Starting ASG power-on process.")
+
+    response = dynamo_table.scan(
+        FilterExpression=boto3.dynamodb.conditions.Attr('resource_id').ne('scheduler')
+    )
+
+    latest_timestamp = max((item['timestamp'] for item in response['Items']), default=None)
+    if not latest_timestamp:
+        logger.error("No recent timestamp found.")
+        return False
+
+    asg_with_latest_timestamp = dynamo_table.scan(
+        FilterExpression=(
+            boto3.dynamodb.conditions.Attr('timestamp').eq(latest_timestamp) &
+            boto3.dynamodb.conditions.Attr('resource_id').ne('scheduler')
+        )
+    ).get('Items', [])
+
+    if not asg_with_latest_timestamp:
+        logger.error("No ASG records found with the latest timestamp.")
+        return False
+
+    logger.info(f"Total ASG records with the latest timestamp: {len(asg_with_latest_timestamp)}")
+
+    paginator = autoscaling_client.get_paginator("describe_auto_scaling_groups")
+    for page in paginator.paginate():
+        for asg in page.get("AutoScalingGroups", []):
+            asg_name = asg["AutoScalingGroupName"]
+            tags = {tag["Key"]: tag["Value"].lower() for tag in asg.get("Tags", [])}
+            auto_scheduler_tag = tags.get("AutomaticScheduler")
+
+            should_power_on = (
+                (default_selection_mode == "include" and auto_scheduler_tag != "false") or
+                (default_selection_mode == "exclude" and auto_scheduler_tag == "true")
+            )
+            if not should_power_on:
+                logger.info(f"Skipping ASG {asg_name} due to 'AutomaticScheduler' tag and selection mode.")
+                continue
+
+            record = next((item for item in asg_with_latest_timestamp if item["resource_id"] == asg_name), None)
+            if not record:
+                logger.warning(f"No previous state found in DynamoDB for ASG {asg_name}. Skipping.")
+                continue
+
+            previous_state = record.get("previous_state", {})
+            min_size = int(previous_state.get("MinSize", asg["MinSize"]))
+            max_size = int(previous_state.get("MaxSize", asg["MaxSize"]))
+            desired_capacity = int(previous_state.get("DesiredCapacity", asg["DesiredCapacity"]))
+
+            if dry_run:
+                logger.info(f"[dry-run] Simulating ASG {asg_name} power-on (Min={min_size}, Max={max_size}, Desired={desired_capacity}).")
+                continue
+
+            try:
+                autoscaling_client.update_auto_scaling_group(
+                    AutoScalingGroupName=asg_name,
+                    MinSize=min_size,
+                    MaxSize=max_size,
+                    DesiredCapacity=desired_capacity
+                )
+                logger.info(f"ASG {asg_name} powered on (Min={min_size}, Max={max_size}, Desired={desired_capacity}).")
+            except Exception as e:
+                logger.error(f"Error powering on ASG {asg_name}: {e}")
+
+    logger.info("Completed ASG power-on process.")
