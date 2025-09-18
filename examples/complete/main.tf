@@ -15,6 +15,7 @@ module "wrapper_service_scheduler" {
     # enable_scheduler_ecs   = true   # Default: true
     # enable_scheduler_rds   = true   # Default: true
     # enable_scheduler_ec2   = true   # Default: true
+    # enable_scheduler_asg   = true   # Default: true
     # cloudwatch_logs_retention_in_days = 14
     # log_level = "INFO"
 

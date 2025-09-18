@@ -33,7 +33,7 @@ module "lambda_service_scheduler" {
         "dynamodb:PartiQLSelect"
       ],
       resources = [aws_dynamodb_table.this[0].arn]
-    }
+    },
     # Permisos para ECS
     ecs = {
       effect = "Allow",
@@ -60,6 +60,26 @@ module "lambda_service_scheduler" {
         "application-autoscaling:DeleteScalingPolicy"
       ],
       resources = ["*"]
+    },
+    # Permisos para EC2
+    ec2 = {
+      effect = "Allow",
+      actions = [
+        "ec2:DescribeInstances",
+        "ec2:StopInstances",
+        "ec2:StartInstances",
+        "ec2:DescribeTags"
+      ],
+      resources = ["*"]
+    },
+    # Permisos para AutoScaling group
+    asg = {
+      effect = "Allow",
+      actions = [
+        "autoscaling:DescribeAutoScalingGroups",
+        "autoscaling:UpdateAutoScalingGroup"
+      ],
+      resources = ["*"]
     }
   }
   source_path = "${path.module}/lambdas/service-scheduler"
@@ -73,6 +93,7 @@ module "lambda_service_scheduler" {
     "ENABLE_SCHEDULER_ECS" : try(var.service_scheduler_parameters.enable_scheduler_ecs, "true")
     "ENABLE_SCHEDULER_RDS" : try(var.service_scheduler_parameters.enable_scheduler_rds, "true")
     "ENABLE_SCHEDULER_EC2" : try(var.service_scheduler_parameters.enable_scheduler_ec2, "true")
+    "ENABLE_SCHEDULER_ASG" : try(var.service_scheduler_parameters.enable_scheduler_asg, "true")
   }
 
   create_current_version_allowed_triggers = false
