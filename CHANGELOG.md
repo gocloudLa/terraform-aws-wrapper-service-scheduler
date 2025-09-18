@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.0.0...v1.0.1) (2025-09-18)
+
+
+### Bug Fixes
+
+* **terraform:** external modules upgrade 20250910 ([936acad](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/commit/936acadc34bd869781362662414e3520275e9c71))
+
 ## 1.0.0 (2025-09-05)
 
 
