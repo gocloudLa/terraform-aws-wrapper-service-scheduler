@@ -46,6 +46,7 @@ service_scheduler_parameters = {
 | enable_scheduler_ecs              | Controls inclusion of ECS service in automation                                        | `bool`   | `true`      | no       |
 | enable_scheduler_rds              | Controls inclusion of RDS service in automation                                        | `bool`   | `true`      | no       |
 | enable_scheduler_ec2              | Controls inclusion of EC2 service in automation                                        | `bool`   | `true`      | no       |
+| enable_scheduler_asg              | Controls inclusion of ASG service in automation                                        | `bool`   | `true`      | no       |
 | cloudwatch_logs_retention_in_days | CloudWatch log retention in days                                                       | `number` | `14`        | no       |
 | log_level                         | Logging level configuration                                                            | `string` | `"INFO"`    | no       |
 | ipv6_allowed_for_dual_stack       | Allows outbound IPv6 traffic on VPC functions that are connected to dual-stack subnets | `bool`   | `null`      | no       |
