@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.0.1...v1.1.0) (2025-10-12)
+
+
+### Features
+
+* **module:** add ec2 & asg scheduler function ([#4](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/issues/4)) ([09a5633](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/commit/09a5633c679e2d61db9fded760340076824b42ec))
+
+
+### Bug Fixes
+
+* **deps:** bump terraform-aws-modules/eventbridge/aws from 4.1.0 to 4.2.0 in the all-terraform-dependencies group across 1 directory ([#6](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/issues/6)) ([622a91a](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/commit/622a91acbb675a6b9f9763473031c6500da076f9))
+
 ## [1.0.1](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.0.0...v1.0.1) (2025-09-18)
 
 
