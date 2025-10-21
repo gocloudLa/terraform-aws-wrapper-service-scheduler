@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.1.0...v1.1.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* **deps:** bump terraform-aws-modules/eventbridge/aws from 4.2.0 to 4.2.2 in the all-terraform-dependencies group across 1 directory ([#8](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/issues/8)) ([a047133](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/commit/a047133fd9fec6f5c407515c7f8ccd17e036ffbc))
+
 ## [1.1.0](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.0.1...v1.1.0) (2025-10-12)
 
 
