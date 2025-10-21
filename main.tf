@@ -135,11 +135,13 @@ resource "aws_dynamodb_table" "this" {
 
 module "event_bridge_service_scheduler" {
   source  = "terraform-aws-modules/eventbridge/aws"
-  version = "4.2.0"
+  version = "4.2.2"
 
   count = local.service_scheduler_enable
 
   create_bus = false
+
+  create_log_delivery_source = false
 
   rules   = local.event_bridge_service_scheduler_rules
   targets = local.event_bridge_service_scheduler_targets
