@@ -1,6 +1,6 @@
 module "lambda_service_scheduler" {
   source  = "terraform-aws-modules/lambda/aws"
-  version = "8.1.2"
+  version = "8.7.0"
 
   count = local.service_scheduler_enable
 
@@ -135,7 +135,7 @@ resource "aws_dynamodb_table" "this" {
 
 module "event_bridge_service_scheduler" {
   source  = "terraform-aws-modules/eventbridge/aws"
-  version = "4.2.2"
+  version = "4.3.0"
 
   count = local.service_scheduler_enable
 
