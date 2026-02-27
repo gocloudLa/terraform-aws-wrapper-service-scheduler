@@ -13,6 +13,9 @@ module "lambda_service_scheduler" {
   # attach_policy = true
   # policy        = "arn:aws:iam::aws:policy/AdministratorAccess"
 
+  ignore_source_code_hash      = true
+  trigger_on_package_timestamp = false
+
   attach_policy_statements = true
   policy_statements = {
     dynamodb = {
@@ -102,6 +105,7 @@ module "lambda_service_scheduler" {
   ipv6_allowed_for_dual_stack = try(var.service_scheduler_parameters.ipv6_allowed_for_dual_stack, null)
   recursive_loop              = try(var.service_scheduler_parameters.recursive_loop, null)
   include_default_tag         = try(var.service_scheduler_parameters.include_default_tag, true)
+
 
   tags = merge(local.common_tags, try(var.service_scheduler_parameters.tags, var.service_scheduler_defaults.tags, null))
 }
