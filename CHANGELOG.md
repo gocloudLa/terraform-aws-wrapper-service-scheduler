@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.1.1...v1.1.2) (2025-11-25)
+
+
+### Bug Fixes
+
+* **deps:** bump terraform-aws-modules/lambda/aws from 8.1.0 to 8.1.2 in the all-terraform-dependencies group across 1 directory ([#10](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/issues/10)) ([50a73ae](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/commit/50a73aed97a42722abf11dc2450b8766ef4a4267))
+
 ## [1.1.1](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.1.0...v1.1.1) (2025-10-21)
 
 
