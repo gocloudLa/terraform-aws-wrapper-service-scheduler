@@ -1,6 +1,6 @@
 module "lambda_service_scheduler" {
   source  = "terraform-aws-modules/lambda/aws"
-  version = "8.1.2"
+  version = "8.7.0"
 
   count = local.service_scheduler_enable
 
@@ -12,6 +12,9 @@ module "lambda_service_scheduler" {
 
   # attach_policy = true
   # policy        = "arn:aws:iam::aws:policy/AdministratorAccess"
+
+  ignore_source_code_hash      = true
+  trigger_on_package_timestamp = false
 
   attach_policy_statements = true
   policy_statements = {
@@ -103,6 +106,7 @@ module "lambda_service_scheduler" {
   recursive_loop              = try(var.service_scheduler_parameters.recursive_loop, null)
   include_default_tag         = try(var.service_scheduler_parameters.include_default_tag, true)
 
+
   tags = merge(local.common_tags, try(var.service_scheduler_parameters.tags, var.service_scheduler_defaults.tags, null))
 }
 
@@ -135,7 +139,7 @@ resource "aws_dynamodb_table" "this" {
 
 module "event_bridge_service_scheduler" {
   source  = "terraform-aws-modules/eventbridge/aws"
-  version = "4.2.2"
+  version = "4.3.0"
 
   count = local.service_scheduler_enable
 
