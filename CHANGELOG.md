@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.1.2...v1.1.3) (2026-03-07)
+
+
+### Bug Fixes
+
+* **deps:** bump the all-terraform-dependencies group across 1 directory with 2 updates ([#13](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/issues/13)) ([694630e](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/commit/694630ee18fe7c4fee4fc5e24dd354d35a48394c))
+
 ## [1.1.2](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.1.1...v1.1.2) (2025-11-25)
 
 
