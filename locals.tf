@@ -16,6 +16,12 @@ locals {
         principal  = "events.amazonaws.com"
         source_arn = try(module.event_bridge_service_scheduler[0].eventbridge_rule_arns["power-off"], null)
       }
+    } : {},
+    local.power_off_schedule_enable != null ? {
+      "rds-re-stop" = {
+        principal  = "events.amazonaws.com"
+        source_arn = try(aws_cloudwatch_event_rule.rds_re_stop[0].arn, null)
+      }
     } : {}
   )
 
