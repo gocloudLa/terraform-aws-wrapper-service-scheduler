@@ -83,6 +83,20 @@ module "lambda_service_scheduler" {
         "autoscaling:UpdateAutoScalingGroup"
       ],
       resources = ["*"]
+    },
+    # Permisos para RDS
+    rds = {
+      effect = "Allow",
+      actions = [
+        "rds:DescribeDBInstances",
+        "rds:DescribeDBClusters",
+        "rds:StopDBInstance",
+        "rds:StartDBInstance",
+        "rds:StopDBCluster",
+        "rds:StartDBCluster",
+        "rds:ListTagsForResource"
+      ],
+      resources = ["*"]
     }
   }
   source_path = "${path.module}/lambdas/service-scheduler"
@@ -151,4 +165,36 @@ module "event_bridge_service_scheduler" {
   targets = local.event_bridge_service_scheduler_targets
 
   tags = merge(local.common_tags, try(var.service_scheduler_parameters.tags, var.service_scheduler_defaults.tags, null))
+}
+
+resource "aws_cloudwatch_event_rule" "rds_re_stop" {
+  count = local.power_off_schedule_enable != null ? local.service_scheduler_enable : 0
+
+  name        = "${local.common_name}-service_scheduler-rds-re-stop"
+  description = "Re-stops RDS instances/clusters auto-started by AWS after 7 days"
+
+  event_pattern = jsonencode({
+    source      = ["aws.rds"]
+    detail-type = ["RDS DB Instance Event", "RDS DB Cluster Event"]
+    detail = {
+      EventID = ["RDS-EVENT-0088", "RDS-EVENT-0151"]
+    }
+  })
+
+  tags = merge(local.common_tags, try(var.service_scheduler_parameters.tags, var.service_scheduler_defaults.tags, null))
+}
+
+resource "aws_cloudwatch_event_target" "rds_re_stop" {
+  count = local.power_off_schedule_enable != null ? local.service_scheduler_enable : 0
+
+  rule = aws_cloudwatch_event_rule.rds_re_stop[0].name
+  arn  = module.lambda_service_scheduler[0].lambda_function_arn
+
+  input_transformer {
+    input_paths = {
+      source_id   = "$.detail.SourceIdentifier"
+      source_type = "$.detail.SourceType"
+    }
+    input_template = "{\"action\": \"rds-re-stop\", \"rds_identifier\": <source_id>, \"rds_source_type\": <source_type>}"
+  }
 }
