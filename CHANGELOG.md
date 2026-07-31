@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.1.3...v1.2.0) (2026-07-31)
+
+
+### Features
+
+* **module:** add scheduler actions for rds ([#16](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/issues/16)) ([e40df92](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/commit/e40df9213438ddf8e34d1e89f7b55b23e824ebb8))
+
 ## [1.1.3](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.1.2...v1.1.3) (2026-03-07)
 
 
