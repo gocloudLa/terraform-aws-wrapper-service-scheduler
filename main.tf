@@ -1,6 +1,6 @@
 module "lambda_service_scheduler" {
   source  = "terraform-aws-modules/lambda/aws"
-  version = "8.7.0"
+  version = "8.8.0"
 
   count = local.service_scheduler_enable
 
