@@ -4,6 +4,8 @@ locals {
   power_on_schedule_enable  = try(var.service_scheduler_parameters.power_on_schedule, null)
   power_off_schedule_enable = try(var.service_scheduler_parameters.power_off_schedule, null)
 
+  rds_re_stop_enable = try(var.service_scheduler_parameters.rds_re_stop_enable, false) ? local.service_scheduler_enable : 0
+
   lambda_service_scheduler_allowed_triggers = merge(
     local.power_on_schedule_enable != null ? {
       "power-on" = {
@@ -17,7 +19,7 @@ locals {
         source_arn = try(module.event_bridge_service_scheduler[0].eventbridge_rule_arns["power-off"], null)
       }
     } : {},
-    local.power_off_schedule_enable != null ? {
+    local.rds_re_stop_enable > 0 ? {
       "rds-re-stop" = {
         principal  = "events.amazonaws.com"
         source_arn = try(aws_cloudwatch_event_rule.rds_re_stop[0].arn, null)

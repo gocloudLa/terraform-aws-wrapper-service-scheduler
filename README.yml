@@ -62,6 +62,7 @@ input_table: |
   | enable | Controls creation of services | `bool` | `"true"` | no |
   | power_on_schedule | Controls CRON expression for startup | `string` | `null` | no |
   | power_off_schedule | Controls CRON expression for shutdown | `string` | `null` | no |
+  | rds_re_stop_enable | Enables the re-stop of RDS instances/clusters auto-started by AWS after 7 days | `bool` | `false` | no |
   | default_selection_mode | Controls service selection mode | `string` | `"include"` | no |
   | enable_scheduler_ecs | Controls inclusion of ECS service in automation | `bool` | `true` | no |
   | enable_scheduler_rds | Controls inclusion of RDS service in automation | `bool` | `true` | no |

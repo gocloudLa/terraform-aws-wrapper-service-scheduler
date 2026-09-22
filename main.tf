@@ -168,7 +168,7 @@ module "event_bridge_service_scheduler" {
 }
 
 resource "aws_cloudwatch_event_rule" "rds_re_stop" {
-  count = local.power_off_schedule_enable != null ? local.service_scheduler_enable : 0
+  count = local.rds_re_stop_enable
 
   name        = "${local.common_name}-service_scheduler-rds-re-stop"
   description = "Re-stops RDS instances/clusters auto-started by AWS after 7 days"
@@ -185,7 +185,7 @@ resource "aws_cloudwatch_event_rule" "rds_re_stop" {
 }
 
 resource "aws_cloudwatch_event_target" "rds_re_stop" {
-  count = local.power_off_schedule_enable != null ? local.service_scheduler_enable : 0
+  count = local.rds_re_stop_enable
 
   rule = aws_cloudwatch_event_rule.rds_re_stop[0].name
   arn  = module.lambda_service_scheduler[0].lambda_function_arn
