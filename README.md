@@ -27,6 +27,7 @@ service_scheduler_parameters = {
 
     power_on_schedule  = "cron(0 11 * * ? *)" # 8AM UTC-3 / null or commented to disable
     power_off_schedule = "cron(0 23 * * ? *)" # 8PM UTC-3 / null or commented to disable
+    # rds_re_stop_enable = true # Default: false
 
   }
 ```
@@ -42,6 +43,7 @@ service_scheduler_parameters = {
 | enable                            | Controls creation of services                                                          | `bool`   | `"true"`    | no       |
 | power_on_schedule                 | Controls CRON expression for startup                                                   | `string` | `null`      | no       |
 | power_off_schedule                | Controls CRON expression for shutdown                                                  | `string` | `null`      | no       |
+| rds_re_stop_enable                | Enables the re-stop of RDS instances/clusters auto-started by AWS after 7 days         | `bool`   | `false`     | no       |
 | default_selection_mode            | Controls service selection mode                                                        | `string` | `"include"` | no       |
 | enable_scheduler_ecs              | Controls inclusion of ECS service in automation                                        | `bool`   | `true`      | no       |
 | enable_scheduler_rds              | Controls inclusion of RDS service in automation                                        | `bool`   | `true`      | no       |
@@ -68,6 +70,7 @@ The infrastructure includes the following resources:
 * DynamoDB table
 * Event Bridge Rule (power-off) (optional)
 * Event Bridge Rule (power-on) (optional)
+* Event Bridge Rule (rds-re-stop) (optional, `rds_re_stop_enable = true`)
 
 #### Workflow
 Operation Workflow:
@@ -83,6 +86,9 @@ The lambda starts with the parameters and verifies if it can execute.<br/>
   * If **power-on** action is executed:
     * The lambda function discovers the last state of services saved in DynamoDB.
     * Updates the service configuration to match the saved state.
+  * If **rds-re-stop** action is executed:
+    * Runs only when `rds_re_stop_enable` is true and the last completed scheduler action is `power-off`.
+    * Stops the RDS instance or cluster from the EventBridge event when DynamoDB shows the scheduler stopped it.
 * **END**<br/>
 The function completes successfully:
   * The requested action is persisted in DynamoDB with status (end).
@@ -97,6 +103,10 @@ Causes **ALL** services to be included within the application logic for automati
 **Exclude Mode**<br/>
 Variable: `default_selection_mode = "exclude"`<br/>
 Causes **ALL** services to be excluded from the application logic for automatic shutdown and startup scheduling, except for services that have the tag `AutomaticScheduler: true`<br/>
+
+---
+
+⚠️ **RDS seven-day re-stop is opt-in:** AWS starts a stopped RDS instance or Aurora cluster after 7 days. The rule matches `RDS-EVENT-0088` (instance started) and `RDS-EVENT-0151` (cluster started), including that automatic start and a manual start while the last completed scheduler action is still `power-off`. Set `rds_re_stop_enable = true` to create it. The rule is not created from `power_off_schedule` alone. Stacks that previously received this rule whenever a power-off schedule was set must set the flag explicitly.
 
 
 

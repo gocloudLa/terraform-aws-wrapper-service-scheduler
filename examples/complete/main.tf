@@ -8,6 +8,7 @@ module "wrapper_service_scheduler" {
 
     power_on_schedule  = "cron(0 11 * * ? *)" # 8AM UTC-3 / null or commented to disable
     power_off_schedule = "cron(0 23 * * ? *)" # 8PM UTC-3 / null or commented to disable
+    # rds_re_stop_enable = true # Default: false
     # include_default_tag = false
     # recursive_loop = "Allow"
     # ipv6_allowed_for_dual_stack = true

@@ -443,47 +443,76 @@ def rds_power_on(dry_run):
         return None
     logger.info("Starting RDS services power-on.")
 
-    response = dynamo_table.scan(
-        FilterExpression=boto3.dynamodb.conditions.Attr('resource_type').eq('RDS')
-    )
+    try:
+        paginator = rds_client.get_paginator("describe_db_instances")
+        for page in paginator.paginate():
+            for db_instance in page.get("DBInstances", []):
+                db_instance_id = db_instance["DBInstanceIdentifier"]
 
-    latest_timestamp = max((item['timestamp'] for item in response['Items']), default=None)
-    if not latest_timestamp:
-        logger.error("Error. No recent RDS timestamp found.")
-        return False
+                if db_instance.get("DBClusterIdentifier"):
+                    continue
 
-    rds_with_latest_timestamp = dynamo_table.scan(
-        FilterExpression=(
-            boto3.dynamodb.conditions.Attr('timestamp').eq(latest_timestamp) &
-            boto3.dynamodb.conditions.Attr('resource_type').eq('RDS')
-        )
-    ).get('Items', [])
+                if not was_stopped_by_scheduler(db_instance_id):
+                    continue
 
-    if not rds_with_latest_timestamp:
-        logger.error("No RDS records found with the latest timestamp.")
-        return False
+                if dry_run:
+                    logger.info(f"[dry-run] Simulating RDS instance {db_instance_id} power-on.")
+                    continue
 
-    logger.info(f"Total RDS records with the latest timestamp: {len(rds_with_latest_timestamp)}")
+                try:
+                    rds_client.start_db_instance(DBInstanceIdentifier=db_instance_id)
+                    logger.info(f"RDS instance {db_instance_id} powered on.")
+                except Exception as e:
+                    logger.error(f"Error starting RDS instance {db_instance_id}: {e}")
 
-    for record in rds_with_latest_timestamp:
-        resource_id = record["resource_id"]
-        rds_type = record.get("rds_type", "instance")
+    except Exception as e:
+        logger.error(f"Error processing RDS instances for power-on: {e}")
+        
+    try:
+        paginator = rds_client.get_paginator("describe_db_clusters")
+        for page in paginator.paginate():
+            for db_cluster in page.get("DBClusters", []):
+                db_cluster_id = db_cluster["DBClusterIdentifier"]
 
-        if dry_run:
-            logger.info(f"[dry-run] Simulating RDS {rds_type} {resource_id} power-on.")
-            continue
+                if not was_stopped_by_scheduler(db_cluster_id):
+                    continue
 
-        try:
-            if rds_type == "cluster":
-                rds_client.start_db_cluster(DBClusterIdentifier=resource_id)
-                logger.info(f"RDS cluster {resource_id} powered on.")
-            else:
-                rds_client.start_db_instance(DBInstanceIdentifier=resource_id)
-                logger.info(f"RDS instance {resource_id} powered on.")
-        except Exception as e:
-            logger.error(f"Error starting RDS {rds_type} {resource_id}: {e}")
+                if dry_run:
+                    logger.info(f"[dry-run] Simulating RDS cluster {db_cluster_id} power-on.")
+                    continue
+
+                try:
+                    rds_client.start_db_cluster(DBClusterIdentifier=db_cluster_id)
+                    logger.info(f"RDS cluster {db_cluster_id} powered on.")
+                except Exception as e:
+                    logger.error(f"Error starting RDS cluster {db_cluster_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"Error processing RDS clusters for power-on: {e}")
 
     logger.info("Completed RDS services power-on.")
+
+def was_stopped_by_scheduler(resource_id):
+    """Checks if an RDS resource has a scheduler stop record in DynamoDB.
+    
+    Uses query by resource_id (primary key) instead of scan to avoid the 1MB
+    limit that breaks with large tables. Returns True if the most recent record
+    for this resource is an RDS stop record.
+    """
+    try:
+        response = dynamo_table.query(
+            KeyConditionExpression='resource_id = :id',
+            ExpressionAttributeValues={':id': resource_id},
+            Limit=1,
+            ScanIndexForward=False
+        )
+        items = response.get('Items', [])
+        if not items:
+            return False
+        return items[0].get('resource_type') == 'RDS'
+    except Exception as e:
+        logger.error(f"Error querying DynamoDB for {resource_id}: {e}")
+        return False
 
 def wait_for_cluster_available(cluster_id, max_wait=270, interval=30):
     """Waits until the cluster and all its instances are in 'available' state."""
