@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.2.0...v1.2.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **lambda:** change scan for rds stop & add variable for rds-re-stop ([#18](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/issues/18)) ([a18c462](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/commit/a18c462ae08fece7763ab0f763d9df2a4d34f0f9))
+
 ## [1.2.0](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.1.3...v1.2.0) (2026-07-31)
 
 
