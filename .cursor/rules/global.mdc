@@ -1,0 +1,185 @@
+---
+description: GoCloud Standard Platform — conventions for all terraform-aws-wrapper-* repos.
+alwaysApply: true
+---
+
+# GoCloud Standard Platform — wrapper conventions
+
+## Context
+
+GoCloud builds Terraform **wrapper modules** that are part of the [Standard Platform](https://github.com/gocloudLa/terraform-aws-standard-platform): a layered AWS infrastructure solution (Organization → Base → Foundation → Project → Workload). Each wrapper either:
+- **Wraps a public module** (e.g. `terraform-aws-modules/*`) adding `for_each`, service discovery integration, complementary resources, and opinionated defaults, or
+- **Develops a custom child module** under `modules/` when no suitable public module exists.
+
+---
+
+## Repo layout
+
+Root files (always present in this order):
+
+```
+versions.tf        # required_version + required_providers
+variables.tf       # metadata + <service>_parameters + <service>_defaults
+metadata.tf        # frozen — provides local.common_name, local.common_tags, local.metadata
+locals.tf          # only wrapper-level derived values
+data_sources.tf    # only data sources referenced from other .tf files
+main.tf            # module blocks
+outputs.tf         # caller-facing outputs only
+```
+
+For complex wrappers, split complementary resource groups into `_<concern>.tf` files (e.g. `_network.tf`, `_alarms.tf`, `_loadbalancer.tf`) — do not pack everything into `main.tf`.
+
+Child modules live under `modules/aws/terraform-aws-<service>/` or `modules/terraform-aws-<service>/`.
+
+---
+
+## Variables — contract
+
+```hcl
+/*--- Common ---*/
+variable "metadata" { type = any }
+
+/*--- <Service> ---*/
+variable "<service>_parameters" {
+  type        = any
+  description = "<One line: what this map configures.>"
+  default     = {}
+}
+
+variable "<service>_defaults" {
+  type        = any
+  description = "Default values merged into each entry of <service>_parameters."
+  default     = {}
+}
+```
+
+- `type = any` **only** for top-level parameter maps (`*_parameters`, `*_defaults`, `metadata`).
+- One-line descriptions; no multi-sentence explanations in `variables.tf`.
+- No new root-level knobs (region, account_id, etc.) — use `metadata` and `*_parameters`.
+- Additional context variables (e.g. `vpc_parameter`, `aws_sns_topic_alerts`) are allowed when the wrapper consumes outputs from another wrapper.
+- Submodule variables stay **typed** (`string`, `bool`, `map(string)`, etc.); `any` only for open shapes like policy documents.
+
+---
+
+## `metadata.tf` — frozen
+
+Never modify `metadata.tf`. It is a platform template that provides `local.common_name`, `local.common_tags`, and `local.metadata`. Copy it from an existing wrapper unchanged; adapt only if the platform template itself changes.
+
+---
+
+## Core pattern — `for_each` + `try()` chain
+
+When iterating over a map of resources, `for_each` may be placed directly on `var.<service>_parameters` or on a local that pre-merges defaults:
+
+```hcl
+# Option A — direct (no local normalization needed)
+module "<service>" {
+  source  = "terraform-aws-modules/<service>/aws"
+  version = "x.y.z"
+
+  for_each = var.<service>_parameters
+
+  some_field = try(each.value.some_field, var.<service>_defaults.some_field, <hardcoded_default>)
+  tags       = merge(local.common_tags, try(each.value.tags, var.<service>_defaults.tags, null))
+}
+
+# Option B — local normalization (when defaults must be merged before resolving derived values)
+locals {
+  <service>s = {
+    for k, v in var.<service>_parameters :
+    k => merge(var.<service>_defaults, v)
+  }
+}
+module "<service>" {
+  for_each   = local.<service>s
+  some_field = try(each.value.some_field, <hardcoded_default>)
+}
+```
+
+**`try()` chain always follows:** `try(each.value.field, var.<service>_defaults.field, <hardcoded_default>)`.
+Never use `lookup()` or `coalesce(try(…, null), default)`.
+
+Some wrappers iterate over a **sub-key** of the parameters map when the service has multiple resource types:
+```hcl
+for_each = try(var.<service>_parameters.role, {})   # e.g. iam wrapper
+```
+
+---
+
+## `locals.tf` — minimal
+
+Keep only what the root must compute once: derived names, feature gates, cross-resource lookups, data expansion. No child-module business logic here.
+
+```hcl
+locals {
+  # Feature gate (only when the wrapper manages a single toggled resource)
+  <service>_enable = try(var.<service>_parameters.enable, false) ? 1 : 0
+}
+```
+
+---
+
+## Tags
+
+```hcl
+tags = merge(local.common_tags, try(each.value.tags, var.<service>_defaults.tags, null))
+```
+
+Never introduce an intermediate `module_tags` local just to feed `tags`.
+
+---
+
+## HCL idioms
+
+- `try(…)` for all optional key reads from `any` maps — never `lookup`.
+- `&&` does **not** short-circuit — guard nullable operands with a ternary or intermediate local.
+- Compatible with both Terraform ≥ 1.10 and OpenTofu — avoid `regexreplace` and other non-portable built-ins.
+- Cross-field validation in child modules: `lifecycle { precondition { … } }`.
+
+---
+
+## Outputs
+
+Export only IDs, ARNs, or names a parent stack or another wrapper will consume.
+Use `try(module.child[0].output, null)` when the child uses `count`. Skip debug outputs.
+
+---
+
+## Examples (`examples/complete/`)
+
+```
+versions.tf
+providers.tf      # default provider + commented aliases for multi-account labs
+metadata.tf       # local.metadata with non-secret placeholders
+variables.tf      # same parameter variables as the wrapper
+main.tf           # module "wrapper_<service>" { source = "../../" … }
+outputs.tf
+```
+
+- Assignment syntax only: `<service>_parameters = { … }` — never block syntax.
+- No real account IDs, ARNs, or secrets: use `"resource-01xxxxxxxxxxxxx"` / `"123456789012"` placeholders.
+- Comment non-default overrides with `# Default: <value>`.
+
+---
+
+## Documentation
+
+`README.yml` is the source of truth for the registry / generated README.
+Do not maintain a hand-written `README.md` if the pipeline generates it from YAML.
+
+---
+
+## Anti-patterns
+
+| Avoid | Prefer |
+|-------|--------|
+| `lookup(map, k, d)` | `try(map.k, d)` |
+| `coalesce(try(…, null), d)` | `try(…, d)` |
+| Intermediate `module_tags` local | inline `merge(…)` in `tags =` |
+| `&&` with nullable operand | ternary or intermediate local |
+| `any` for scalar submodule vars | explicit type |
+| Unused `data` blocks | delete |
+| Block syntax for map variables | `= { }` assignment |
+| Long variable `description` | one line |
+| Business logic in wrapper locals | move to child module |
+| Modifying `metadata.tf` | copy frozen; never edit |

@@ -1,0 +1,99 @@
+---
+description: Validate, regenerate, and analyze root README.yml using the repo README.yml authoring definition.
+globs: README.yml
+alwaysApply: false
+---
+
+# `README.yml` — format and authoring
+
+## Language
+
+All generated text (descriptions, feature titles, notes, table cells) must be written in **English**.
+
+## Scope
+
+Shared across many Terraform module repos. **Never** embed another project's org, repo name, registry address, or module story — derive identifiers only from the module tree being edited (`git` remote, `source` in examples, or neutral placeholders). **Inputs:** `*.tf` under the module root (including `examples/**` when present) and this file only — do **not** assume a pre-existing `README.yml`.
+
+---
+
+## Top-level shape (order)
+
+```yaml
+module_name: "…"
+module_description: |
+  …
+module_badges:
+  - url: "…"
+    image: "…"
+    alt: "…"
+quick_start: |
+  ```hcl
+  <prefix>_parameters = { … }
+  ```
+features:
+  - icon: "…"
+    title: "…"
+    short_description: "…"
+    long_description: |
+      …
+    examples:
+      - title: "…"
+        code: |
+          ```hcl
+          …
+          ```
+important_notes: |
+  - …
+input_table: |
+  | … |
+```
+
+Only these seven top-level keys. Multiline fields use `|`. UTF-8, 2-space indent.
+
+---
+
+## Section rules
+
+### `module_name`
+Single-line header title; no version numbers. Format: `"Terraform <Title-Cased module segment> Module"`, derived from the repo name / aws service name. Example: `terraform-aws-wrapper-peering` → `"Terraform Peering Module"`.
+
+### `module_description`
+Marketing + scope (what / why). No resource names, internal flags, or step-by-step behavior. One strong line or `|` multiline when two short paragraphs are justified.
+
+### `module_badges`
+`url` / `image` / `alt` per item. `image` = Shields-style `style=for-the-badge`. Default triple when URLs are known:
+1. Latest release — `url`: `https://github.com/<org>/<repo>/releases/latest` | `image`: `img.shields.io/github/v/release/<org>/<repo>.svg?style=for-the-badge`
+2. Last commit — `url: ""` | `image`: `img.shields.io/github/last-commit/<org>/<repo>.svg?style=for-the-badge`
+3. Terraform Registry — always include. Derive from the GitHub remote using the convention `terraform-<provider>-<module-name>`: `url`: `https://registry.terraform.io/modules/<org>/<module-name>/<provider>` | `image`: `https://img.shields.io/badge/Terraform-Registry-7B42BC?style=for-the-badge&logo=terraform&logoColor=white`. Example: remote `gocloudLa/terraform-aws-wrapper-peering` → org=`gocloudLa`, provider=`aws`, module=`wrapper-peering`.
+
+Use `git` remote to resolve `<org>/<repo>`.
+
+### `quick_start`
+**Exactly one** ```` ```hcl ```` fence containing only `<root_*_parameters_name> = { … }`. No `module`, `provider`, `terraform`, or other root blocks. When `examples/**` exists, mirror the richest file's key order, spacing, and comment wording — do not rename or reorder for style. Use `#` comment lines inside the map for optional overrides.
+
+### `features`
+- `icon` = single Unicode emoji. Each item requires `icon`, `title`, `short_description`, `long_description` (pipe), `examples` (list).
+- Each `examples[]` entry: `title` + `code` (pipe) with its own closed ```` ```hcl ```` fence; prefer `…_parameters = { … }` only.
+- Mirror `examples/` grouping — if one file shows requester + accepter together, prefer one `feature` with two `examples` rather than splitting.
+- `long_description` may reference provider resource types (`aws_*`) when it clarifies multi-apply flows — concise prose, not a schema dump.
+- One scenario per feature; use `# TBD` skeletons and note in `long_description` when a runnable example is missing. Use `examples: []` only when genuinely absent.
+
+### `important_notes`
+Warnings only: destroy order, cross-account pitfalls, second-apply ordering, provider quirks, security. Optional severity emoji (`⚠️` / `ℹ️` / `🔒`) + **Bold label:** on the opening line. Keep few, sharp bullets — omit anything that merely repeats `input_table` mechanics.
+
+### `input_table`
+Pipe rows only — **omit header row and `| --- |` separator**. Column order: key | description | type | default | required (`yes` / `no` / `—`).
+
+**Scope:** document only the keys that live *inside* the `*_parameters` map entries — i.e. the attributes a user sets under each `"name" = { … }` block. Do **not** add rows for the top-level module variables themselves (`metadata`, `vpc_parameter`, `peering_parameters`, `peering_defaults`, etc.).
+
+Row order: relationship/endpoint keys → flags (`create_*`, `auto_*`) → resource IDs → option maps → routing/leaf lists. Defaults: prefer `null`, `{}`, booleans matching `variables.tf`/`try()`; use `—` only when no default applies.
+
+---
+
+## Authoring workflow
+
+1. `variables.tf` → `*_parameters` name + full key set → drives `quick_start` and `input_table`.
+2. `main.tf` / `locals.tf` → optional keys, `try`/`lookup`, nesting → drives `features`.
+3. Best `examples/…/main.tf` → authoritative key order, comments, multi-step patterns.
+4. Write: `module_description` → `quick_start` → `features` → `important_notes` → `input_table`.
+5. Validate YAML and every ```` ```hcl ```` fence closes.
