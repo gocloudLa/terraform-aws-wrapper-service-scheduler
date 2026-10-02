@@ -45,25 +45,42 @@ def lambda_handler(event, context):
         return {"status": "action not allowed"}
 
     if action != 'rds-re-stop':
-        record_action_status('scheduler', action, dry_run, 'begin')
+        for thread_id in action_threads(action):
+            record_action_status(thread_id, action, dry_run, 'begin')
 
     try:
         if action == 'power-off':
             general_power_off(dry_run)
         elif action == 'power-on':
             general_power_on(dry_run)
+        elif action == 'power-on-rds':
+            rds_power_on(dry_run)
         elif action == 'rds-re-stop':
             rds_re_stop(event, dry_run)
         else:
             logger.error(f"Unsupported action: {action}")
             raise ValueError("Unsupported action")
-    
+
         if action != 'rds-re-stop':
-            record_action_status('scheduler', action, dry_run, 'end')
+            for thread_id in action_threads(action):
+                record_action_status(thread_id, action, dry_run, 'end')
         logger.info(f"Completed action '{action}' with dry_run={dry_run}")
 
     except Exception as e:
         logger.error(f"Error executing action '{action}': {e}")
+
+def action_threads(action):
+    """Returns the DynamoDB 'resource_id' threads an action must be recorded in.
+
+    - power-off affects both the general cycle and the RDS cycle.
+    - power-on (general) belongs only to the general thread.
+    - power-on-rds belongs only to the RDS thread.
+    """
+    if action == 'power-off':
+        return ['scheduler', 'scheduler-rds']
+    if action == 'power-on-rds':
+        return ['scheduler-rds']
+    return ['scheduler']
 
 def record_action_status(resource_id, action, dry_run, action_type):
     """Log the action status in DynamoDB."""
@@ -82,11 +99,21 @@ def record_action_status(resource_id, action, dry_run, action_type):
         dynamo_table.put_item(Item=item)
 
 def can_execute_action(action):
-    """Check if the action can be executed based on the last record in DynamoDB."""
+    """Check if the action can be executed based on the last record in DynamoDB.
+
+    Each action is evaluated against its own thread so the general cycle and the
+    RDS cycle are independent:
+      - power-on / power-off  -> thread 'scheduler'
+      - power-on-rds          -> thread 'scheduler-rds'
+      - rds-re-stop           -> thread 'scheduler-rds'
+    """
+    
+    thread_id = 'scheduler-rds' if action in ('power-on-rds', 'rds-re-stop') else 'scheduler'
+
     try:
         response = dynamo_table.query(
             KeyConditionExpression='resource_id = :id',
-            ExpressionAttributeValues={':id': 'scheduler'},
+            ExpressionAttributeValues={':id': thread_id},
             Limit=10,
             ScanIndexForward=False
         )
@@ -94,23 +121,23 @@ def can_execute_action(action):
         items = response.get('Items', [])
 
         if not items:
-            logger.info("No records in DynamoDB.")
-            return action == 'power-off'
+            logger.info(f"No records in DynamoDB for thread '{thread_id}'.")
+            return action in ('power-off',)
 
         last_non_dry_run_end_action = next(
-            (item for item in items if item.get('action_type') == 'end' and not item.get('dry_run', False)), 
+            (item for item in items if item.get('action_type') == 'end' and not item.get('dry_run', False)),
             None
         )
 
         if last_non_dry_run_end_action:
             last_action = last_non_dry_run_end_action.get('action')
-            logger.debug(f"Last recorded action: {last_action} (dry_run: {last_non_dry_run_end_action.get('dry_run')})")
+            logger.debug(f"Last recorded action for '{thread_id}': {last_action} (dry_run: {last_non_dry_run_end_action.get('dry_run')})")
 
             if last_action == action:
                 return False
 
-            if action == 'rds-re-stop' and last_action != 'power-off':
-                logger.info(f"Cannot execute rds-re-stop: last action was '{last_action}', expected 'power-off'.")
+            if action == 'rds-re-stop' and last_action not in ('power-off', 'rds-re-stop'):
+                logger.info(f"Cannot execute rds-re-stop: last RDS action was '{last_action}', expected 'power-off'.")
                 return False
 
         return True
@@ -133,12 +160,11 @@ def general_power_off(dry_run):
 def general_power_on(dry_run):
     """Initiates a general power-on of resources."""
     logger.info("Initiating general power-on of resources.")
-    
+
     ecs_power_on(dry_run)
-    rds_power_on(dry_run)
     ec2_power_on(dry_run)
     asg_power_on(dry_run)
-    
+
     logger.info("General power-on process completed.")
 
 def ecs_power_off(dry_run):
