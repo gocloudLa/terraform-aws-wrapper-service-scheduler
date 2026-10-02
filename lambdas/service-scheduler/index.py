@@ -540,6 +540,35 @@ def was_stopped_by_scheduler(resource_id):
         logger.error(f"Error querying DynamoDB for {resource_id}: {e}")
         return False
 
+def wait_for_instance_available(instance_id, max_wait=270, interval=30):
+    """Waits until a DB instance is 'available' AND fully settled."""
+    elapsed = 0
+
+    while elapsed < max_wait:
+        try:
+            instance_info = rds_client.describe_db_instances(
+                DBInstanceIdentifier=instance_id
+            )["DBInstances"][0]
+
+            status = instance_info["DBInstanceStatus"]
+            pending = instance_info.get("PendingModifiedValues", {})
+
+            if status == "available" and not pending:
+                logger.info(f"Instance '{instance_id}' is available and settled.")
+                return True
+
+            reason = status if status != "available" else "pending modifications"
+            logger.info(f"Instance '{instance_id}' not ready ({reason}). Waiting ({elapsed}s/{max_wait}s)...")
+            time.sleep(interval)
+            elapsed += interval
+
+        except Exception as e:
+            logger.error(f"Error checking instance '{instance_id}' status: {e}")
+            return False
+
+    logger.error(f"Instance '{instance_id}' did not become fully available within {max_wait}s.")
+    return False
+
 def wait_for_cluster_available(cluster_id, max_wait=270, interval=30):
     """Waits until the cluster and all its instances are in 'available' state."""
     elapsed = 0
@@ -615,6 +644,9 @@ def rds_re_stop(event, dry_run):
                 return None
         except Exception as e:
             logger.error(f"Error describing instance {rds_identifier}: {e}")
+            return None
+
+        if not wait_for_instance_available(rds_identifier):
             return None
     elif rds_source_type in ("db-cluster", "cluster"):
         if not wait_for_cluster_available(rds_identifier):
