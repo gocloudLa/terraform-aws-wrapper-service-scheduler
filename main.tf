@@ -7,7 +7,7 @@ module "lambda_service_scheduler" {
   function_name = "${local.common_name}-service_scheduler"
   description   = "Lambda function for service_scheduler"
   handler       = "index.lambda_handler"
-  runtime       = "python3.9"
+  runtime       = "python3.14"
   timeout       = 300
 
   # attach_policy = true
@@ -97,6 +97,13 @@ module "lambda_service_scheduler" {
         "rds:ListTagsForResource"
       ],
       resources = ["*"]
+    },
+    self_invoke = {
+      effect  = "Allow",
+      actions = ["lambda:InvokeFunction"],
+      resources = [
+        "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.common_name}-service_scheduler"
+      ]
     }
   }
   source_path = "${path.module}/lambdas/service-scheduler"
