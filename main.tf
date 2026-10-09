@@ -97,13 +97,6 @@ module "lambda_service_scheduler" {
         "rds:ListTagsForResource"
       ],
       resources = ["*"]
-    },
-    self_invoke = {
-      effect  = "Allow",
-      actions = ["lambda:InvokeFunction"],
-      resources = [
-        "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:${local.common_name}-service_scheduler"
-      ]
     }
   }
   source_path = "${path.module}/lambdas/service-scheduler"

@@ -1,5 +1,4 @@
 import boto3
-import json
 import logging
 import os
 import time
@@ -23,7 +22,6 @@ application_autoscaling_client = boto3.client('application-autoscaling')
 dynamodb_client = boto3.resource('dynamodb')
 autoscaling_client = boto3.client("autoscaling")
 ec2_client = boto3.client("ec2")
-lambda_client = boto3.client("lambda")
 
 DYNAMO_TABLE_NAME = os.getenv('DYNAMO_TABLE_NAME', '')
 dynamo_table = dynamodb_client.Table(DYNAMO_TABLE_NAME)
@@ -40,18 +38,13 @@ def lambda_handler(event, context):
     action = event.get('action', 'power-off')
     dry_run = event.get('dry_run', False)
 
-    global current_function_name
-    current_function_name = getattr(context, 'function_name', None)
-
     logger.info(f"Lambda invoked with action '{action}' and dry_run={dry_run}")
-
-    internal_actions = ('rds-re-stop', 'power-on-rds-retry')
 
     if not can_execute_action(action):
         logger.error(f"Cannot execute action '{action}'.")
         return {"status": "action not allowed"}
 
-    if action not in internal_actions:
+    if action != 'rds-re-stop':
         for thread_id in action_threads(action):
             record_action_status(thread_id, action, dry_run, 'begin')
 
@@ -62,15 +55,13 @@ def lambda_handler(event, context):
             general_power_on(dry_run)
         elif action == 'power-on-rds':
             rds_power_on(dry_run)
-        elif action == 'power-on-rds-retry':
-            rds_power_on_retry(event, dry_run)
         elif action == 'rds-re-stop':
             rds_re_stop(event, dry_run)
         else:
             logger.error(f"Unsupported action: {action}")
             raise ValueError("Unsupported action")
 
-        if action not in internal_actions:
+        if action != 'rds-re-stop':
             for thread_id in action_threads(action):
                 record_action_status(thread_id, action, dry_run, 'end')
         logger.info(f"Completed action '{action}' with dry_run={dry_run}")
@@ -116,9 +107,6 @@ def can_execute_action(action):
       - power-on-rds          -> thread 'scheduler-rds'
       - rds-re-stop           -> thread 'scheduler-rds'
     """
-
-    if action == 'power-on-rds-retry':
-        return True
 
     thread_id = 'scheduler-rds' if action in ('power-on-rds', 'rds-re-stop') else 'scheduler'
 
@@ -474,74 +462,12 @@ def rds_power_off(dry_run):
 
     logger.info("Completed RDS services power-off.")
 
-RDS_START_RETRYABLE_ERRORS = ('InsufficientDBInstanceCapacity',)
-
-RDS_RETRY_DELAY = 30
-RDS_RETRY_MAX_ATTEMPTS = 15
-current_function_name = None
-
-def try_start_rds(resource_id, resource_type):
-    """Performs a single RDS start attempt."""
-    try:
-        if resource_type == 'cluster':
-            rds_client.start_db_cluster(DBClusterIdentifier=resource_id)
-        else:
-            rds_client.start_db_instance(DBInstanceIdentifier=resource_id)
-        logger.info(f"RDS {resource_type} {resource_id} powered on.")
-        return 'started'
-    except Exception as e:
-        error_code = getattr(e, 'response', {}).get('Error', {}).get('Code') if hasattr(e, 'response') else None
-        if error_code in RDS_START_RETRYABLE_ERRORS:
-            logger.warning(
-                f"Transient error '{error_code}' starting RDS {resource_type} {resource_id}. "
-                f"Will be retried."
-            )
-            return 'pending'
-        logger.error(f"Error starting RDS {resource_type} {resource_id}: {e}")
-        return 'error'
-
-def schedule_rds_retry(pending, attempt):
-    """Asynchronously re-invokes this lambda to retry the pending RDS resources."""
-    if not pending:
-        return
-
-    if attempt >= RDS_RETRY_MAX_ATTEMPTS:
-        pending_ids = [p["id"] for p in pending]
-        logger.warning(
-            f"Reached max RDS start retries ({RDS_RETRY_MAX_ATTEMPTS}). "
-            f"Still pending: {pending_ids}. They remain recorded as stopped; "
-            f"the next power-on-rds cycle will retry them."
-        )
-        return
-
-    if not current_function_name:
-        logger.error("Cannot schedule RDS retry: function name unavailable.")
-        return
-
-    try:
-        lambda_client.invoke(
-            FunctionName=current_function_name,
-            InvocationType='Event',
-            Payload=json.dumps({
-                "action": "power-on-rds-retry",
-                "pending": pending,
-                "attempt": attempt + 1
-            }).encode("utf-8")
-        )
-        logger.info(
-            f"Scheduled RDS retry (attempt {attempt + 1}) for {len(pending)} pending resource(s)."
-        )
-    except Exception as e:
-        logger.error(f"Failed to schedule RDS retry: {e}")
-
 def rds_power_on(dry_run):
     """Powers on RDS instances and clusters."""
     if not enable_scheduler_rds:
         logger.info("RDS scheduler is disabled. Skipping...")
         return None
     logger.info("Starting RDS services power-on.")
-
-    pending = []
 
     try:
         paginator = rds_client.get_paginator("describe_db_instances")
@@ -559,8 +485,11 @@ def rds_power_on(dry_run):
                     logger.info(f"[dry-run] Simulating RDS instance {db_instance_id} power-on.")
                     continue
 
-                if try_start_rds(db_instance_id, "instance") == 'pending':
-                    pending.append({"id": db_instance_id, "type": "instance"})
+                try:
+                    rds_client.start_db_instance(DBInstanceIdentifier=db_instance_id)
+                    logger.info(f"RDS instance {db_instance_id} powered on.")
+                except Exception as e:
+                    logger.error(f"Error starting RDS instance {db_instance_id}: {e}")
 
     except Exception as e:
         logger.error(f"Error processing RDS instances for power-on: {e}")
@@ -578,49 +507,14 @@ def rds_power_on(dry_run):
                     logger.info(f"[dry-run] Simulating RDS cluster {db_cluster_id} power-on.")
                     continue
 
-                if try_start_rds(db_cluster_id, "cluster") == 'pending':
-                    pending.append({"id": db_cluster_id, "type": "cluster"})
+                try:
+                    rds_client.start_db_cluster(DBClusterIdentifier=db_cluster_id)
+                    logger.info(f"RDS cluster {db_cluster_id} powered on.")
+                except Exception as e:
+                    logger.error(f"Error starting RDS cluster {db_cluster_id}: {e}")
 
     except Exception as e:
         logger.error(f"Error processing RDS clusters for power-on: {e}")
-
-    if not dry_run:
-        schedule_rds_retry(pending, attempt=0)
-
-def rds_power_on_retry(event, dry_run):
-    """Deferred retry of RDS resources that failed to start due to capacity."""
-    if not enable_scheduler_rds:
-        logger.info("RDS scheduler is disabled. Skipping power-on-rds-retry...")
-        return None
-
-    pending = event.get("pending", [])
-    attempt = event.get("attempt", 1)
-
-    if not pending:
-        logger.info("No pending RDS resources in retry payload. Nothing to do.")
-        return None
-
-    logger.info(f"RDS retry attempt {attempt} for {len(pending)} pending resource(s). Waiting {RDS_RETRY_DELAY}s...")
-    time.sleep(RDS_RETRY_DELAY)
-
-    still_pending = []
-    for item in pending:
-        resource_id = item.get("id")
-        resource_type = item.get("type", "instance")
-
-        if not was_stopped_by_scheduler(resource_id):
-            logger.info(f"RDS {resource_type} {resource_id} is no longer a scheduler-stopped resource. Skipping retry.")
-            continue
-
-        if dry_run:
-            logger.info(f"[dry-run] Simulating RDS {resource_type} {resource_id} power-on retry.")
-            continue
-
-        if try_start_rds(resource_id, resource_type) == 'pending':
-            still_pending.append({"id": resource_id, "type": resource_type})
-
-    if not dry_run:
-        schedule_rds_retry(still_pending, attempt)
 
     logger.info("Completed RDS services power-on.")
 
