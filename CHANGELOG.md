@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.2.1...v1.3.0) (2026-10-22)
+
+
+### Features
+
+* **module:** add individual power-on-rds action ([#20](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/issues/20)) ([a1492e1](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/commit/a1492e1cfae96fa7b763eba0a1e706ea4d62cfa0))
+
 ## [1.2.1](https://github.com/gocloudLa/terraform-aws-wrapper-service-scheduler/compare/v1.2.0...v1.2.1) (2026-09-26)
 
 
