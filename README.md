@@ -41,8 +41,9 @@ service_scheduler_parameters = {
 | Name                              | Description                                                                            | Type     | Default     | Required |
 | --------------------------------- | -------------------------------------------------------------------------------------- | -------- | ----------- | -------- |
 | enable                            | Controls creation of services                                                          | `bool`   | `"true"`    | no       |
-| power_on_schedule                 | Controls CRON expression for startup                                                   | `string` | `null`      | no       |
-| power_off_schedule                | Controls CRON expression for shutdown                                                  | `string` | `null`      | no       |
+| power_on_schedule                 | Controls CRON expression for startup of ECS/EC2/ASG (does not affect RDS)              | `string` | `null`      | no       |
+| power_on_rds_schedule             | Controls CRON expression for RDS startup on an independent schedule                    | `string` | `null`      | no       |
+| power_off_schedule                | Controls CRON expression for shutdown of all services (including RDS)                  | `string` | `null`      | no       |
 | rds_re_stop_enable                | Enables the re-stop of RDS instances/clusters auto-started by AWS after 7 days         | `bool`   | `false`     | no       |
 | default_selection_mode            | Controls service selection mode                                                        | `string` | `"include"` | no       |
 | enable_scheduler_ecs              | Controls inclusion of ECS service in automation                                        | `bool`   | `true`      | no       |
@@ -69,7 +70,8 @@ The infrastructure includes the following resources:
 * Main lambda function
 * DynamoDB table
 * Event Bridge Rule (power-off) (optional)
-* Event Bridge Rule (power-on) (optional)
+* Event Bridge Rule (power-on) (optional, ECS/EC2/ASG startup)
+* Event Bridge Rule (power-on-rds) (optional, RDS startup on independent schedule)
 * Event Bridge Rule (rds-re-stop) (optional, `rds_re_stop_enable = true`)
 
 #### Workflow

@@ -7,7 +7,7 @@ module "lambda_service_scheduler" {
   function_name = "${local.common_name}-service_scheduler"
   description   = "Lambda function for service_scheduler"
   handler       = "index.lambda_handler"
-  runtime       = "python3.9"
+  runtime       = "python3.14"
   timeout       = 300
 
   # attach_policy = true

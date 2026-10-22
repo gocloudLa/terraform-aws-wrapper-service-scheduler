@@ -1,8 +1,9 @@
 locals {
   service_scheduler_enable = lookup(var.service_scheduler_parameters, "enable", false) ? 1 : 0
 
-  power_on_schedule_enable  = try(var.service_scheduler_parameters.power_on_schedule, null)
-  power_off_schedule_enable = try(var.service_scheduler_parameters.power_off_schedule, null)
+  power_on_schedule_enable     = try(var.service_scheduler_parameters.power_on_schedule, null)
+  power_off_schedule_enable    = try(var.service_scheduler_parameters.power_off_schedule, null)
+  power_on_rds_schedule_enable = try(var.service_scheduler_parameters.power_on_rds_schedule, null)
 
   rds_re_stop_enable = try(var.service_scheduler_parameters.rds_re_stop_enable, false) ? local.service_scheduler_enable : 0
 
@@ -17,6 +18,12 @@ locals {
       "power-off" = {
         principal  = "events.amazonaws.com"
         source_arn = try(module.event_bridge_service_scheduler[0].eventbridge_rule_arns["power-off"], null)
+      }
+    } : {},
+    local.power_on_rds_schedule_enable != null ? {
+      "power-on-rds" = {
+        principal  = "events.amazonaws.com"
+        source_arn = try(module.event_bridge_service_scheduler[0].eventbridge_rule_arns["power-on-rds"], null)
       }
     } : {},
     local.rds_re_stop_enable > 0 ? {
@@ -39,6 +46,12 @@ locals {
         description         = "Service Scheduler (power-off)"
         schedule_expression = local.power_off_schedule_enable
       }
+    } : {},
+    local.power_on_rds_schedule_enable != null ? {
+      "power-on-rds" = {
+        description         = "Service Scheduler (power-on RDS)"
+        schedule_expression = local.power_on_rds_schedule_enable
+      }
     } : {}
   )
 
@@ -58,6 +71,15 @@ locals {
           name  = "power-off"
           arn   = try(module.lambda_service_scheduler[0].lambda_function_arn, "")
           input = jsonencode({ "action" : "power-off" })
+        }
+      ]
+    } : {},
+    local.power_on_rds_schedule_enable != null ? {
+      "power-on-rds" = [
+        {
+          name  = "power-on-rds"
+          arn   = try(module.lambda_service_scheduler[0].lambda_function_arn, "")
+          input = jsonencode({ "action" : "power-on-rds" })
         }
       ]
     } : {}
